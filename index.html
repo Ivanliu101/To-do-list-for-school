@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Homework To-Do ✦</title>
+    <style>
+        :root{
+            --bg:#f6f8fb; --card:#ffffff; --muted:#777; --accent:#2b6bf6;
+            --yellow:#fff7b2;
+        }
+        *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
+        body{margin:0;background:var(--bg);color:#111;padding:20px}
+        header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+        h1{margin:0;font-size:20px}
+        .sub{color:var(--muted);font-size:13px}
+        .layout{display:flex;gap:18px}
+        .panel{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 4px 18px rgba(20,30,60,0.06)}
+        .left{width:320px}
+        .right{flex:1;min-width:320px}
+        label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted)}
+        input[type="text"], select, input[type="date"]{
+            width:100%;padding:8px;border-radius:8px;border:1px solid #e3e7ef;background:#fff;
+        }
+        button{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+        .small{font-size:13px;padding:6px 8px}
+        .task-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+        .task{
+            padding:10px;border-radius:8px;border:1px solid #eee;display:flex;gap:10px;align-items:flex-start;
+            background:#fff;position:relative;
+        }
+        .task.late{background:var(--yellow);border-color:#f2df5b}
+        .task .title{font-weight:600}
+        .meta{font-size:12px;color:var(--muted);margin-top:6px}
+        .badges{display:flex;gap:6px;flex-wrap:wrap}
+        .badge{font-size:11px;padding:4px 6px;border-radius:999px;background:#f0f4ff;color:#133; border:1px solid #e6eefc}
+        .badge.priority-high{background:#ffe8e8;border-color:#ffd0d0;color:#a00}
+        .actions{margin-left:auto;display:flex;gap:6px}
+        .btn-ghost{background:transparent;border:1px solid #e6e9ef;padding:6px;border-radius:8px;cursor:pointer}
+        .filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+        .import-box{
+            position:fixed;left:12px;bottom:12px;width:180px;height:96px;border-radius:10px;
+            background:linear-gradient(180deg,#fff,#fbfdff);box-shadow:0 6px 30px rgba(10,30,80,0.08);
+            border:2px dashed #cfe3ff;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;
+            font-size:13px;color:#2153c9;cursor:pointer;z-index:999;
+        }
+        .import-box.dragover{background:#eaf3ff;border-color:#2b6bf6}
+        .top-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .empty{color:var(--muted);padding:12px;text-align:center}
+        .row{display:flex;gap:8px;align-items:center}
+        .category-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+        .category-item{display:flex;justify-content:space-between;align-items:center;padding:6px;border-radius:8px}
+        .small-muted{font-size:12px;color:var(--muted)}
+        .due-pill{font-size:12px;padding:4px 6px;border-radius:6px;background:#fafafa;border:1px solid #eee}
+        .completed{opacity:0.5;text-decoration:line-through}
+        footer{margin-top:14px;color:var(--muted);font-size:13px}
+        @media(max-width:880px){.layout{flex-direction:column}.left{width:100%}}
+    </style>
+</head>
+<body>
+<header>
+    <div>
+        <h1>Homework To-Do ✦</h1>
+        <div class="sub">分類／優先／繳交時間 — 遲交自動浮上並以黃色標示 🟡</div>
+    </div>
+</header>
+
+<div class="layout">
+    <div class="panel left">
+        <div><strong>新增任務 ✦</strong></div>
+        <div style="margin-top:8px">
+            <label>標題</label>
+            <input id="title" type="text" placeholder="輸入作業標題..." />
+        </div>
+        <div style="margin-top:8px">
+            <label>分類</label>
+            <select id="categorySelect"></select>
+            <div style="display:flex;gap:6px;margin-top:6px">
+                <input id="newCategory" type="text" placeholder="新增分類..." />
+                <button id="addCat" class="small">加入</button>
+            </div>
+        </div>
+        <div style="margin-top:8px">
+            <label>優先等級</label>
+            <select id="priority">
+                <option value="2">High</option>
+                <option value="1">Medium</option>
+                <option value="0">Low</option>
+            </select>
+        </div>
+        <div style="margin-top:8px">
+            <label>繳交時間</label>
+            <input id="dueDate" type="date" />
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:10px">
+            <button id="addTask">新增任務</button>
+            <button id="exportBtn" class="btn-ghost">匯出檔案</button>
+            <button id="clearAll" class="btn-ghost">清空</button>
+        </div>
+
+        <div style="margin-top:14px">
+            <div class="small-muted">篩選</div>
+            <div class="filters" id="filters">
+                <select id="filterCategory"><option value="">全部分類</option></select>
+                <select id="filterStatus">
+                    <option value="all">全部</option>
+                    <option value="pending">未完成</option>
+                    <option value="completed">已完成</option>
+                </select>
+                <select id="filterPriority">
+                    <option value="">所有優先</option>
+                    <option value="2">High</option>
+                    <option value="1">Medium</option>
+                    <option value="0">Low</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="category-list" id="categoryList" style="margin-top:12px">
+            <div><strong>分類列表</strong></div>
+            <!-- categories -->
+        </div>
+
+        <footer>
+            <div>檔案說明：按「匯出檔案」會存成 JSON 檔，之後在其他電腦把檔案拖到左下角的匯入格子即可載入資料。</div>
+        </footer>
+    </div>
+
+    <div class="panel right">
+        <div class="top-controls">
+            <div><strong>任務清單</strong></div>
+            <div class="small-muted">（自動把過期未完成移到最上方）</div>
+            <div style="margin-left:auto" class="row">
+                <div class="small-muted">顯示完成</div>
+                <input id="showCompleted" type="checkbox" checked style="margin-left:6px" />
+            </div>
+        </div>
+
+        <div id="taskContainer" class="task-list" style="margin-top:12px"></div>
+    </div>
+</div>
+
+<div id="importBox" class="import-box" title="拖放檔案到這裡或點擊選擇">
+    <div>
+        <div style="font-weight:700">匯入檔案</div>
+        <div style="font-size:12px;margin-top:6px">把 .json 檔拖到這裡或點擊選檔</div>
+        <input id="fileInput" type="file" accept=".json" style="display:none" />
+    </div>
+</div>
+
+<script>
+    /* ====== 資料模型 ======
+    task = {
+      id, title, category, priority(2/1/0), dueDate (YYYY-MM-DD or ""), completed:boolean, created:timestamp
+    }
+    */
+    const DEFAULT_CATS = ['數學','國文','英文','自然','社會','專題'];
+
+    let tasks = [];
+    let categories = [...DEFAULT_CATS];
+
+    const el = (id)=>document.getElementById(id);
+
+    // 初始化 UI
+    function init(){
+// 資料：先嘗試從 localStorage 讀取（方便同一台電腦），否則載入一些範例
+        const local = localStorage.getItem('hw_tasks_v1');
+        const localCats = localStorage.getItem('hw_cats_v1');
+        if(local){
+            try{ tasks = JSON.parse(local) }catch(e){}
+        } else {
+            // 範例資料
+            tasks = [
+                {id: genId(), title:"數學習題：第5-8題", category:"數學", priority:2, dueDate: nextDay(-1), completed:false, created:Date.now()},
+                {id: genId(), title:"英文作文：My Summer", category:"英文", priority:1, dueDate: nextDay(2), completed:false, created:Date.now()},
+                {id: genId(), title:"自然報告草稿", category:"自然", priority:0, dueDate: nextDay(0), completed:false, created:Date.now()},
+                {id: genId(), title:"歷史讀書：第三章", category:"社會", priority:1, dueDate: '', completed:false, created:Date.now()},
+            ];
+        }
+        if(localCats) {
+            try{ categories = JSON.parse(localCats) }catch(e){}
+        }
+        bindUI();
+        renderCategories();
+        renderTasks();
+        startTimerForOverdue();
+    }
+
+    function genId(){ return 't'+Math.random().toString(36).slice(2,9) }
+    function nextDay(offset){
+        const d = new Date(); d.setDate(d.getDate() + offset);
+        return d.toISOString().slice(0,10);
+    }
+
+    /* ====== UI 綁定 ====== */
+    function bindUI(){
+        el('addCat').addEventListener('click', ()=>{
+            const val = el('newCategory').value.trim();
+            if(!val) return;
+            if(!categories.includes(val)) categories.push(val);
+            el('newCategory').value = '';
+            saveCats();
+            renderCategories();
+        });
+
+        el('addTask').addEventListener('click', ()=>{
+            const title = el('title').value.trim();
+            if(!title) { alert('請輸入標題'); return; }
+            const category = el('categorySelect').value || categories[0] || '其他';
+            const priority = Number(el('priority').value);
+            const due = el('dueDate').value || '';
+            tasks.push({id:genId(), title, category, priority, dueDate:due, completed:false, created:Date.now()});
+            el('title').value=''; el('dueDate').value='';
+            saveTasks();
+            renderTasks();
+        });
+
+        el('exportBtn').addEventListener('click', exportFile);
+        el('clearAll').addEventListener('click', ()=>{
+            if(!confirm('確定要清空所有任務嗎？')) return;
+            tasks = [];
+            saveTasks();
+            renderTasks();
+        });
+
+        el('filterCategory').addEventListener('change', renderTasks);
+        el('filterStatus').addEventListener('change', renderTasks);
+        el('filterPriority').addEventListener('change', renderTasks);
+        el('showCompleted').addEventListener('change', renderTasks);
+
+// 匯入區 (拖放 & 點擊)
+        const box = el('importBox');
+        const fileIn = el('fileInput');
+
+        box.addEventListener('click', ()=>fileIn.click());
+        fileIn.addEventListener('change',(e)=>{
+            if(e.target.files.length) handleFile(e.target.files[0]);
+            e.target.value='';
+        });
+
+        ['dragenter','dragover'].forEach(ev=>{
+            box.addEventListener(ev,(e)=>{ e.preventDefault(); box.classList.add('dragover'); });
+        });
+        ['dragleave','drop'].forEach(ev=>{
+            box.addEventListener(ev,(e)=>{
+                e.preventDefault(); box.classList.remove('dragover');
+                if(ev==='drop'){
+                    const files = e.dataTransfer.files;
+                    if(files.length) handleFile(files[0]);
+                }
+            });
+        });
+
+// 類別點擊刪除
+        el('categoryList').addEventListener('click', (e)=>{
+            if(e.target.dataset.action === 'delcat'){
+                const cat = e.target.dataset.cat;
+                if(!confirm(`刪除分類「${cat}」？（不會刪除該分類下的任務）`)) return;
+                categories = categories.filter(c=>c!==cat);
+                saveCats(); renderCategories(); renderTasks();
+            }
+        });
+    }
+
+    /* ====== 存取 ====== */
+    function saveTasks(){
+        localStorage.setItem('hw_tasks_v1', JSON.stringify(tasks));
+    }
+
+    function saveCats(){
+        localStorage.setItem('hw_cats_v1', JSON.stringify(categories));
+    }
+
+    /* 匯出檔案（下載 JSON） */
+    function exportFile(){
+        const payload = {version:1, exportedAt:new Date().toISOString(), categories, tasks};
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `homework_tasks_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    /* 匯入檔案（覆蓋或合併） */
+    function handleFile(file){
+        if(!file.name.endsWith('.json')) { alert('請上傳 JSON 檔'); return; }
+        const reader = new FileReader();
+        reader.onload = (e)=>{
+            try{
+                const payload = JSON.parse(e.target.result);
+                if(payload && payload.tasks){
+                    if(confirm('要將匯入檔案「覆蓋」目前資料嗎？（按「取消」則會合併）')){
+                        tasks = payload.tasks || [];
+                        categories = payload.categories || categories;
+                    } else {
+// 合併：避免 id 衝突
+                        const existingIds = new Set(tasks.map(t=>t.id));
+                        for(const t of (payload.tasks||[])){
+                            let newid = t.id;
+                            while(existingIds.has(newid)) newid = genId();
+                            t.id = newid;
+                            tasks.push(t);
+                            existingIds.add(newid);
+                        }
+                        if(payload.categories) {
+                            for(const c of payload.categories){ if(!categories.includes(c)) categories.push(c) }
+                        }
+                    }
+                    saveTasks(); saveCats(); renderCategories(); renderTasks();
+                    alert('載入成功 ✔');
+                } else {
+                    alert('JSON 檔案格式不正確（找不到 tasks）');
+                }
+            }catch(err){
+                console.error(err);
+                alert('無法讀取檔案，請確認是有效的 JSON');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    /* ====== 渲染 ====== */
+    function renderCategories(){
+        const sel = el('categorySelect');
+        sel.innerHTML = '';
+        for(const c of categories){
+            const opt = document.createElement('option'); opt.value=c; opt.textContent=c; sel.appendChild(opt);
+        }
+        const fc = el('filterCategory');
+        fc.innerHTML = '<option value="">全部分類</option>';
+        for(const c of categories){
+            const opt = document.createElement('option'); opt.value=c; opt.textContent=c; fc.appendChild(opt);
+        }
+
+        const list = el('categoryList');
+        list.innerHTML = '<div><strong>分類列表</strong></div>';
+        for(const c of categories){
+            const row = document.createElement('div'); row.className='category-item';
+            row.innerHTML = `<div>${c}</div><div><button data-action="delcat" data-cat="${c}" class="btn-ghost small">刪除</button></div>`;
+            list.appendChild(row);
+        }
+    }
+
+    /* 判斷是否過期（遲交）*/
+    function isLate(task){
+        if(task.completed) return false;
+        if(!task.dueDate) return false;
+        const today = new Date().toISOString().slice(0,10);
+        return today > task.dueDate;
+    }
+
+    /* 排序：先把過期未完成放最上（按照最久過期先），再依優先度(2>1>0)，再繳交時間(越近先)，最後建立時間 */
+    function sortedTasks(){
+        const copy = [...tasks];
+        copy.sort((a,b)=>{
+            const aLate = isLate(a) ? 1 : 0;
+            const bLate = isLate(b) ? 1 : 0;
+            if(aLate !== bLate) return bLate - aLate; // late first (bLate=1 => b before a)
+            if(aLate && bLate){
+// 兩者都是過期：依照過期越久先（較早 dueDate 先）
+                if(a.dueDate && b.dueDate){
+                    if(a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+                }
+            }
+// 未過期或同狀態：依優先度 desc
+            if(a.priority !== b.priority) return b.priority - a.priority;
+// 再依照到期日（無到期日排後面）
+            if(a.dueDate && b.dueDate){
+                if(a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+            } else if(a.dueDate && !b.dueDate) return -1;
+            else if(!a.dueDate && b.dueDate) return 1;
+// 最後建立時間
+            return a.created - b.created;
+        });
+        return copy;
+    }
+
+    function renderTasks(){
+        const container = el('taskContainer');
+        container.innerHTML = '';
+        const fc = el('filterCategory').value;
+        const fs = el('filterStatus').value;
+        const fp = el('filterPriority').value;
+        const showCompleted = el('showCompleted').checked;
+
+        const arr = sortedTasks().filter(t=>{
+            if(fc && t.category !== fc) return false;
+            if(fp !== '' && String(t.priority) !== String(fp)) return false;
+            if(fs === 'pending' && t.completed) return false;
+            if(fs === 'completed' && !t.completed) return false;
+            if(!showCompleted && t.completed) return false;
+            return true;
+        });
+
+        if(arr.length === 0){
+            container.innerHTML = `<div class="empty">目前沒有任務 ✨</div>`;
+            return;
+        }
+
+        for(const t of arr){
+            const wrap = document.createElement('div');
+            wrap.className = 'task' + (isLate(t) ? ' late' : '');
+            const left = document.createElement('div'); left.style.flex='1';
+            left.innerHTML = `<div class="title ${t.completed ? 'completed' : ''}">${escapeHtml(t.title)}</div>
+<div class="meta">
+<span class="badges">
+<span class="badge">${escapeHtml(t.category)}</span>
+<span class="badge priority-${t.priority===2 ? 'high' : (t.priority===1 ? 'med' : 'low')}">Priority: ${t.priority===2? 'High': t.priority===1? 'Medium': 'Low'}</span>
+</span>
+<span style="float:right" class="due-pill">${t.dueDate? '繳交：'+t.dueDate : '無期限'}</span>
+</div>`;
+            wrap.appendChild(left);
+
+            const actions = document.createElement('div'); actions.className='actions';
+            const chk = document.createElement('button'); chk.className='btn-ghost small'; chk.textContent = t.completed ? '未完成' : '完成';
+            chk.addEventListener('click', ()=>{ t.completed = !t.completed; saveTasks(); renderTasks(); });
+            const edit = document.createElement('button'); edit.className='btn-ghost small'; edit.textContent='編輯';
+            edit.addEventListener('click', ()=>openEditor(t));
+            const del = document.createElement('button'); del.className='btn-ghost small'; del.textContent='刪除';
+            del.addEventListener('click', ()=>{ if(confirm('刪除此任務？')){ tasks = tasks.filter(x=>x.id!==t.id); saveTasks(); renderTasks(); }});
+            actions.appendChild(chk); actions.appendChild(edit); actions.appendChild(del);
+            wrap.appendChild(actions);
+            container.appendChild(wrap);
+        }
+    }
+
+    /* 編輯彈窗（簡易 prompt 風格） */
+    function openEditor(task){
+        const newTitle = prompt('編輯標題', task.title);
+        if(newTitle === null) return;
+        task.title = newTitle.trim() || task.title;
+
+        const newCat = prompt('分類', task.category) || task.category;
+        if(!categories.includes(newCat)) categories.push(newCat);
+        task.category = newCat;
+
+        const newPri = prompt('優先（2=High,1=Medium,0=Low）', String(task.priority));
+        if(newPri !== null && ['0','1','2'].includes(String(newPri).trim())) task.priority = Number(newPri);
+
+        const newDue = prompt('繳交日期 (YYYY-MM-DD，留空表示無期限)', task.dueDate||'') || '';
+        if(newDue && !/^\d{4}-\d{2}-\d{2}$/.test(newDue)) { alert('日期格式不正確，需為 YYYY-MM-DD'); }
+        else task.dueDate = newDue;
+        saveCats(); saveTasks(); renderCategories(); renderTasks();
+    }
+
+    /* 每分鐘檢查一次過期狀態（讓遲交能即時跑上來） */
+    let overdueTimer = null;
+    function startTimerForOverdue(){
+        if(overdueTimer) clearInterval(overdueTimer);
+        overdueTimer = setInterval(()=>{ renderTasks(); }, 60*1000);
+    }
+
+    /* 小工具 */
+    function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+    /* 啟動 */
+    init();
+</script>
+</body>
+</html>
